@@ -10,7 +10,7 @@ Text Domain: svnfw
 License: GNU General Public License v3.0
 License URI: http://www.gnu.org/licenses/gpl-3.0.html
 Domain Path: lang
-*/
+*/  
 
 defined( 'ABSPATH' ) || exit;
 
@@ -129,7 +129,7 @@ class Simple_EU_VAT_Number_For_WooCommerce {
         $allowed_countries = self::ALLOWED_COUNTRIES;
         if ( in_array( WC()->customer->get_billing_country(), $allowed_countries ) ) {
             $vat_number = isset( $_POST['vat_number'] ) ? $_POST['vat_number'] : '';
-            if ( ! empty( $vat_number ) && ! $this->is_valid_vat_number( $vat_number ) ) {
+            if ( ! empty( $vat_number ) && ! $this->svnfw_is_valid_vat_number( $vat_number ) ) {
                 wc_add_notice( __('Invalid VAT Number.', 'svnfw'), 'error' );
             }
         }
