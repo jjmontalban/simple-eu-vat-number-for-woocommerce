@@ -1,0 +1,5 @@
+{
+    "require": {
+        "jairforo/php-vat-checker": "^3.0"
+    }
+}
