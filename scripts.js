@@ -1,4 +1,5 @@
 jQuery(document).ready(function($) {
+    //Country selected
     var countryInput = $('select#billing_country');
     countryInput.change(function() {
         var selectedCountry = $(this).val();
@@ -10,4 +11,6 @@ jQuery(document).ready(function($) {
         }
     });
     countryInput.change();
+
+
 });
