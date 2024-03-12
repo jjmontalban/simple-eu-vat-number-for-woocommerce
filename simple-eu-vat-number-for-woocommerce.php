@@ -30,8 +30,7 @@ class Simple_EU_VAT_Number_For_WooCommerce {
         add_action('wp_enqueue_scripts', array($this, 'svnfw_enqueue_custom_scripts'));
         //checkout
         add_action( 'woocommerce_checkout_fields', array( $this, 'svnfw_add_vat_checkout' ) );
-        add_action( 'woocommerce_after_checkout_validation', array( $this, 'svnfw_validate_vat_checkout' ), 10, 2 );
-        add_action( 'woocommerce_created_customer', array( $this, 'svnfw_save_vat_registration' ) );
+        add_action( 'woocommerce_after_checkout_validation', array( $this, 'svnfw_validate_vat_checkout' ), 10, 2 );        
         add_action( 'woocommerce_checkout_update_order_meta', array( $this, 'svnfw_save_vat_checkout' ) );
         //account
         add_filter('woocommerce_billing_fields', array($this, 'svnfw_add_vat_account'));
@@ -43,6 +42,11 @@ class Simple_EU_VAT_Number_For_WooCommerce {
         add_action( 'woocommerce_admin_order_data_after_billing_address', array( $this, 'svnfw_add_vat_order' ), 10, 1 );
         //email
         add_filter( 'woocommerce_email_order_meta_fields',  array( $this, 'svnfw_add_vat_email' ), 10, 3 );
+        //no tax
+        add_filter( 'woocommerce_customer_get_is_vat_exempt', array( $this, 'svnfw_set_vat_exemption' ), 10, 2 );
+        add_filter( 'woocommerce_get_order_item_totals', array( $this, 'svnfw_hide_tax_totals' ), 10, 2 );
+
+
     }
 
 
@@ -154,36 +158,24 @@ class Simple_EU_VAT_Number_For_WooCommerce {
     }
 
     /**
-     * Saves the VAT number when a new user account is created at checkout.
-     *
-     * This method is used to save the VAT number to the user meta when a new user account is created during checkout.
-     * This allows the VAT number to be associated with the user for future orders.
-     *
-     * @param int $customer_id The ID of the customer who has just been created.
-     */
-    public function svnfw_save_vat_registration( $customer_id ) {
-        if ( isset( $_POST['vat_number'] ) ) {
-            $vat_number = sanitize_text_field( $_POST['vat_number'] );
-            if ( !empty( $vat_number ) ) {
-                update_user_meta( $customer_id, 'vat_number', $vat_number );
-            }
-        }
-    }
-    
-
-    /**
-     * Saves the VAT number to the order meta after checkout.
-     *
-     * This method is used to save the VAT number to the order meta after a successful checkout.
-     * The VAT number is saved in the order meta so it can be used for order processing and reporting.
-     *
-     * @param int $order_id The ID of the order that has just been created.
-     */    
+    * Saves the VAT number to the order meta and user meta after checkout.
+    *
+    * This method is used to save the VAT number to the order meta and user meta after a successful checkout.
+    * The VAT number is saved in the order meta so it can be used for order processing and reporting.
+    * The VAT number is also saved in the user meta so it can be used for future orders.
+    *
+    * @param int $order_id The ID of the order that has just been created.
+    */     
     public function svnfw_save_vat_checkout($order_id) {
         if (in_array(WC()->customer->get_billing_country(), $this->allowed_countries)) {
             $vat_number = isset($_POST['vat_number']) ? $_POST['vat_number'] : '';
             if (!empty($vat_number)) {
                 update_post_meta($order_id, '_vat_number', sanitize_text_field($vat_number));
+                $order = wc_get_order( $order_id );
+                $customer_id = $order->get_customer_id();
+                update_user_meta( $customer_id, 'vat_number', $vat_number );
+                //Customer no tax
+                update_user_meta($customer_id, 'is_vat_exempt', 'yes');
             }
         }
     }
@@ -225,9 +217,11 @@ class Simple_EU_VAT_Number_For_WooCommerce {
                 $validation_result = $this->validate_vat_number($vat_number);
                 if (is_wp_error($validation_result)) {
                     wc_add_notice($validation_result->get_error_message(), 'error');
-                    return; // No guardes el valor si la validación falla
+                    return;
                 }
                 update_user_meta($user_id, 'vat_number', sanitize_text_field($vat_number));
+                //Customer no tax
+                update_user_meta($user_id, 'is_vat_exempt', 'yes');
             }
         }
     }
@@ -264,12 +258,11 @@ class Simple_EU_VAT_Number_For_WooCommerce {
     public function svnfw_save_vat_admin($user_id) {
         if (isset($_POST['vat_number'])) {
             $vat_number = sanitize_text_field($_POST['vat_number']);
-    
             if (!$this->svnfw_is_valid_vat_number($vat_number)) {
                 add_action('user_profile_update_errors', function($errors) {
                     $errors->add('vat_number', '<strong>' . __('Error', 'svnfw') . '</strong>: ' . __('Invalid VAT Number.', 'svnfw'));
                 }, 10, 3);
-    
+                
                 add_filter('update_user_metadata', function($null, $object_id, $meta_key, $meta_value) use ($user_id, $vat_number) {
                     if ($object_id == $user_id && $meta_key == 'vat_number' && $meta_value == $vat_number) {
                         return false;
@@ -277,6 +270,8 @@ class Simple_EU_VAT_Number_For_WooCommerce {
                 }, 10, 4);
             } else {
                 update_user_meta($user_id, 'vat_number', $vat_number);
+                //Customer no tax
+                update_user_meta($user_id, 'is_vat_exempt', 'yes');
             }
         }
     }
@@ -335,7 +330,7 @@ class Simple_EU_VAT_Number_For_WooCommerce {
      * @return bool True if the VAT number is valid, false otherwise.
      */
     public function svnfw_is_valid_vat_number( $vat_number ) {
-        /* 
+        
         $vies = new Vies();
         $countryCode = substr($vat_number, 0, 2);
         $vatNumber = substr($vat_number, 2);
@@ -346,9 +341,24 @@ class Simple_EU_VAT_Number_For_WooCommerce {
         } catch (ViesException $e) {
             return false;
         } 
-        */
+    }
 
-        return true;
+
+    //////////////////NO TAXES
+    public function svnfw_set_vat_exemption( $is_vat_exempt, $customer ) {
+        $customer_id = $customer->get_id();
+        if (get_user_meta($customer_id, 'is_vat_exempt', true) === 'yes') {
+            $is_vat_exempt = true;
+        }
+        return $is_vat_exempt;
+    }
+
+    public function svnfw_hide_tax_totals( $total_rows, $order ) {
+        $customer_id = $order->get_customer_id();
+        if (get_user_meta($customer_id, 'is_vat_exempt', true) === 'yes') {
+            unset($total_rows['tax']);
+        }
+        return $total_rows;
     }
 
 
