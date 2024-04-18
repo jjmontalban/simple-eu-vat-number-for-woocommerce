@@ -1,4 +1,10 @@
+#Wordpress
 vendor/
-test/
-/trunk
-/tags
+node_modules/
+# Numerous always-ignore extensions
+*.log
+*.zip
+
+# OS or Editor folders
+._*.cache
+.DS_Store
