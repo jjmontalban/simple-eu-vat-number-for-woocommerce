@@ -6,8 +6,8 @@ Requires at least: 4.7
 Tested up to: 6.4.3
 Stable tag: 1.0
 Requires PHP: 7.0
-License: GPLv2 or later
-License URI: https://www.gnu.org/licenses/gpl-2.0.html
+License: GNU General Public License v3.0
+License URI: http://www.gnu.org/licenses/gpl-3.0.html
 
 The easiest way to manage the intra-community VAT of your customers in your store
 
