@@ -10,3 +10,4 @@ circle.yml
 composer.json
 composer.lock
 .wordpress-org
+.vscode
