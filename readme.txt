@@ -3,8 +3,8 @@ Contributors: jjmontalban
 Donate link: https://www.paypal.com/donate/?hosted_button_id=X3ULVUYCHVVPG
 Tags: vat, taxes, woocommerce, tax number
 Requires at least: 4.7
-Tested up to: 6.4.3
-Stable tag: 1.0
+Tested up to: 6.9
+Stable tag: 2.0
 Requires PHP: 7.0
 License: GNU General Public License v3.0
 License URI: http://www.gnu.org/licenses/gpl-3.0.html
