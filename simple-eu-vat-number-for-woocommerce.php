@@ -3,7 +3,7 @@
 Plugin Name: Simple EU VAT Number for Woocommerce
 Plugin URI: https://github.com/jjmontalban/simple-eu-vat-number-for-woocommerce
 Description: The most simple way to manage EU VAT Number for WooCommerce.
-Version: 1.0
+Version: 2.0
 Author: JJMontalban
 Author URI:  https://jjmontalban.github.io
 Text Domain: svnfw
