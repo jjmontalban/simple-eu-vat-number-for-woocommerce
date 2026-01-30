@@ -4,8 +4,8 @@ Donate link: https://www.paypal.com/donate/?hosted_button_id=X3ULVUYCHVVPG
 Tags: vat, taxes, woocommerce, tax number
 Requires at least: 4.7
 Tested up to: 6.9
-Stable tag: 2.0
-Requires PHP: 7.0
+Stable tag: 3.0
+Requires PHP: 7.3
 License: GNU General Public License v3.0
 License URI: http://www.gnu.org/licenses/gpl-3.0.html
 
@@ -38,10 +38,28 @@ No. Just install and your client can enter their number.
 
 == Changelog ==
 
+= 3.0 =
+* Fixed: Nonce verification for checkout form (VAT was not being saved)
+* Fixed: Nonce verification for admin user profile
+* Fixed: Bug in admin VAT validation logic
+* Added: HPOS (High-Performance Order Storage) compatibility
+* Added: Ability to remove VAT exemption when clearing VAT number
+* Improved: Security and code quality
+
+= 2.0 =
+* Improved: Settings page enhancements
+* Updated: Code structure and organization
+
 = 1.0 =
 * First Version
 
 == Upgrade Notice ==
+
+= 3.0 =
+* Critical bug fixes for VAT saving in checkout and admin. HPOS compatibility added.
+
+= 2.0 =
+* Settings page improvements
 
 = 1.0 =
 * First Version
