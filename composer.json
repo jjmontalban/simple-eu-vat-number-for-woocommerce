@@ -2,7 +2,7 @@
     "name": "jjmontalban/simple-eu-vat-number-for-woocommerce",
     "description": "A WordPress plugin to manage VAT numbers for EU customers in WooCommerce",
     "require": {
-        "php": "^8.0",
+        "php": ">=7.3",
         "dragonbe/vies": "^2.3"
     },
     "require-dev": {

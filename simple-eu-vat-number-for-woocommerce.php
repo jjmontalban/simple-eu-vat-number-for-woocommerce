@@ -3,7 +3,7 @@
 Plugin Name: Simple EU VAT Number for Woocommerce
 Plugin URI: https://github.com/jjmontalban/simple-eu-vat-number-for-woocommerce
 Description: The most simple way to manage EU VAT Number for WooCommerce.
-Version: 2.0
+Version: 3.0
 Author: JJMontalban
 Author URI:  https://jjmontalban.github.io
 Text Domain: svnfw
@@ -45,8 +45,11 @@ class Simple_EU_VAT_Number_For_WooCommerce {
         //no tax
         add_filter( 'woocommerce_customer_get_is_vat_exempt', array( $this, 'svnfw_set_vat_exemption' ), 10, 2 );
         add_filter( 'woocommerce_get_order_item_totals', array( $this, 'svnfw_hide_tax_totals' ), 10, 2 );
-        //Add nonce field
+        //Add nonce fields
         add_action( 'woocommerce_after_edit_address_form_billing', array( $this, 'svnfw_add_nonce_field_to_billing_form' ) );
+        add_action( 'woocommerce_after_checkout_billing_form', array( $this, 'svnfw_add_nonce_field_to_checkout' ) );
+        add_action( 'show_user_profile', array( $this, 'svnfw_add_nonce_field_to_admin' ) );
+        add_action( 'edit_user_profile', array( $this, 'svnfw_add_nonce_field_to_admin' ) );
     }
 
 
@@ -124,6 +127,25 @@ class Simple_EU_VAT_Number_For_WooCommerce {
         wp_nonce_field( 'svnfw_action', 'svnfw_nonce' );
     }
 
+    /**
+     * Adds a nonce field to the checkout form.
+     *
+     * @return void
+     */
+    public function svnfw_add_nonce_field_to_checkout() {
+        wp_nonce_field( 'svnfw_checkout_action', 'svnfw_checkout_nonce' );
+    }
+
+    /**
+     * Adds a nonce field to the admin user profile form.
+     *
+     * @param WP_User $user The user object.
+     * @return void
+     */
+    public function svnfw_add_nonce_field_to_admin( $user ) {
+        wp_nonce_field( 'svnfw_admin_action', 'svnfw_admin_nonce' );
+    }
+
     //////////////////////CHECKOUT 
 
 
@@ -179,13 +201,18 @@ class Simple_EU_VAT_Number_For_WooCommerce {
     public function svnfw_save_vat_checkout( $order_id ) {
         if ( isset( $_POST['svnfw_checkout_nonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['svnfw_checkout_nonce'] ) ), 'svnfw_checkout_action' ) ) {
             if ( in_array( WC()->customer->get_billing_country(), $this->allowed_countries ) ) {
-                $vat_number = isset( $_POST['vat_number'] ) ? sanitize_text_field( wp_unslash($_POST['vat_number'])) : '';
-                if ( !empty($vat_number ) ) {
-                    update_post_meta( $order_id, '_vat_number', sanitize_text_field( $vat_number ) );
+                $vat_number = isset( $_POST['vat_number'] ) ? sanitize_text_field( wp_unslash( $_POST['vat_number'] ) ) : '';
+                if ( ! empty( $vat_number ) ) {
                     $order = wc_get_order( $order_id );
+                    // HPOS compatible: use order meta methods
+                    $order->update_meta_data( '_vat_number', $vat_number );
+                    $order->save();
+
                     $customer_id = $order->get_customer_id();
-                    update_user_meta( $customer_id, 'vat_number', $vat_number );
-                    update_user_meta( $customer_id, 'is_vat_exempt', 'yes' );
+                    if ( $customer_id ) {
+                        update_user_meta( $customer_id, 'vat_number', $vat_number );
+                        update_user_meta( $customer_id, 'is_vat_exempt', 'yes' );
+                    }
                 }
             }
         }
@@ -293,21 +320,27 @@ class Simple_EU_VAT_Number_For_WooCommerce {
      */
     public function svnfw_save_vat_admin( $user_id ) {
         if ( isset( $_POST['svnfw_admin_nonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['svnfw_admin_nonce'] ) ), 'svnfw_admin_action' ) ) {
-            if (isset($_POST['vat_number'])) {
-                $vat_number = sanitize_text_field( $_POST['vat_number'] );
+            if ( isset( $_POST['vat_number'] ) ) {
+                $vat_number = sanitize_text_field( wp_unslash( $_POST['vat_number'] ) );
+
+                // If VAT number is empty, clear the exemption
+                if ( empty( $vat_number ) ) {
+                    delete_user_meta( $user_id, 'vat_number' );
+                    delete_user_meta( $user_id, 'is_vat_exempt' );
+                    return;
+                }
+
+                // Validate VAT number
                 if ( ! $this->svnfw_is_valid_vat_number( $vat_number ) ) {
                     add_action( 'user_profile_update_errors', function( $errors ) {
-                        $errors->add( 'vat_number', '<strong>' . __( 'Error', 'svnfw' ) . '</strong>: ' . __( 'Invalid VAT Number.', 'svnfw' ) );
+                        $errors->add( 'vat_number', '<strong>' . esc_html__( 'Error', 'svnfw' ) . '</strong>: ' . esc_html__( 'Invalid VAT Number.', 'svnfw' ) );
                     }, 10, 3 );
-                    
-                    add_filter( 'update_user_metadata', function( $null, $object_id, $meta_key, $meta_value ) use ( $user_id, $vat_number ) {
-                        if ( $object_id == $user_id && $meta_key == 'vat_number' && $meta_value == $vat_number ) {
-                            return false;
-                        }
-                    }, 10, 4);
-                    update_user_meta( $user_id, 'vat_number', $vat_number );
-                    update_user_meta( $user_id, 'is_vat_exempt', 'yes' );
+                    return;
                 }
+
+                // VAT is valid, save it
+                update_user_meta( $user_id, 'vat_number', $vat_number );
+                update_user_meta( $user_id, 'is_vat_exempt', 'yes' );
             }
         }
     }
@@ -325,7 +358,9 @@ class Simple_EU_VAT_Number_For_WooCommerce {
      * @return void
      */
     public function svnfw_add_vat_order( $order ) {
-        echo '<p><strong>' . esc_html__( 'VAT Number:', 'svnfw' ) . '</strong> ' . esc_html( get_post_meta( $order->get_id(), '_vat_number', true ) ) . '</p>';
+        // HPOS compatible: use order meta methods
+        $vat_number = $order->get_meta( '_vat_number', true );
+        echo '<p><strong>' . esc_html__( 'VAT Number:', 'svnfw' ) . '</strong> ' . esc_html( $vat_number ) . '</p>';
     }
 
 
@@ -346,9 +381,10 @@ class Simple_EU_VAT_Number_For_WooCommerce {
      * @return array $fields The modified meta fields.
      */
     public function svnfw_add_vat_email( $fields, $sent_to_admin, $order ) {
+        // HPOS compatible: use order meta methods
         $fields['vat_number'] = array(
             'label' => __( 'VAT Number', 'svnfw' ),
-            'value' => get_post_meta( $order->get_id(), '_vat_number', true ),
+            'value' => $order->get_meta( '_vat_number', true ),
         );
 
         return $fields;
